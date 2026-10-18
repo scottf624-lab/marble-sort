@@ -3,58 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0e1525">
 <title>Marble Sort</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{margin:0;height:100%;height:100dvh;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0e1525;color:#eef3ff;overflow:hidden}
-body{display:flex;flex-direction:column;min-height:100dvh}
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px calc(8px + env(safe-area-inset-top));gap:8px}
-h1{margin:0;font-size:1.15rem;letter-spacing:.04em}
-.stat{opacity:.85;font-size:.92rem}
-.stat b{color:#ffd36a}
-.tubes{flex:1;min-height:240px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:14px 18px;padding:8px 12px;overflow:auto;-webkit-overflow-scrolling:touch}
-.tube{width:54px;height:228px;border:3px solid rgba(255,255,255,.45);border-top-color:transparent;border-radius:8px 8px 28px 28px;display:flex;flex-direction:column-reverse;align-items:center;padding:6px 0 10px;background:rgba(255,255,255,.06);cursor:pointer;position:relative;flex:0 0 54px}
-.tube:after{content:"";position:absolute;inset:8px 6px auto 6px;height:10px;border-radius:8px;background:rgba(255,255,255,.07)}
-.tube.sel{border-color:#ffd36a;transform:translateY(-6px);box-shadow:0 10px 24px rgba(255,211,106,.18)}
+html,body{margin:0;background:#0e1525;color:#eef3ff;font-family:system-ui,-apple-system,sans-serif}
+header{padding:14px 14px 6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1{margin:0;font-size:1.2rem}
+.stat{color:#ffd36a;font-weight:800}
+.tubes{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:18px 16px;padding:12px 10px 20px}
+.tube{width:58px;height:232px;position:relative;border:3px solid #9eb6d9;border-top:0;border-radius:10px 10px 30px 30px;background:#152238;flex:0 0 58px}
+.tube.sel{border-color:#ffd36a;background:#1e3358}
 .tube.done{border-color:#5ee09a}
-.marble{width:42px;height:42px;border-radius:50%;margin:2px 0;position:relative;box-shadow:inset -7px -8px 12px rgba(0,0,0,.28),inset 6px 5px 10px rgba(255,255,255,.35),0 3px 6px rgba(0,0,0,.35)}
-.marble:before{content:"";position:absolute;top:6px;left:8px;width:12px;height:9px;border-radius:50%;background:rgba(255,255,255,.45)}
-.tube.sel .marble:last-child,.tube.sel .run{transform:translateY(-14px);transition:transform .15s ease}
-footer{display:flex;justify-content:center;gap:10px;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
-footer button,.card button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:1rem;cursor:pointer;background:#24324d;color:#fff}
+.marble{position:absolute;left:5px;width:44px;height:44px;border-radius:50%;box-shadow:inset -6px -8px 10px rgba(0,0,0,.3),inset 5px 5px 8px rgba(255,255,255,.35)}
+footer{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;padding:8px 12px 24px}
+footer button,.card button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:1rem;background:#24324d;color:#fff}
 button.gold{background:#ffd36a;color:#1a1408}
-.overlay{display:none;position:fixed;inset:0;background:rgba(6,10,20,.72);align-items:center;justify-content:center;text-align:center;padding:24px;z-index:5}
+.overlay{display:none;position:fixed;inset:0;background:rgba(6,10,20,.72);align-items:center;justify-content:center;text-align:center;padding:24px}
 .overlay.on{display:flex}
 .card{background:#18233a;border-radius:20px;padding:28px 22px;max-width:360px;width:100%}
-.card h2{margin:0 0 8px;color:#ffd36a;font-size:1.8rem}
-.card p{margin:0 0 16px;opacity:.9}
 </style>
 </head>
 <body>
 <header>
   <h1>MARBLE SORT</h1>
-  <div class="stat">Level <b id="lv">1</b> · Moves <b id="mv">0</b></div>
+  <div class="stat">Level <span id="lv">1</span> · Moves <span id="mv">0</span></div>
 </header>
 <div class="tubes" id="tubes"></div>
 <footer>
-  <button id="undo">Undo</button>
-  <button id="restart">Restart</button>
-  <button class="gold" id="next">New mix</button>
+  <button type="button" id="undo">Undo</button>
+  <button type="button" id="restart">Restart</button>
+  <button type="button" class="gold" id="next">New mix</button>
 </footer>
 <div class="overlay" id="win">
   <div class="card">
     <h2>Sorted!</h2>
     <p id="winmsg">Nice work.</p>
-    <button class="gold" id="go">Next level</button>
+    <button type="button" class="gold" id="go">Next level</button>
   </div>
 </div>
 <script>
-const H=4, COLORS=["#e23d4d","#f0a202","#3ddc84","#3b82f6","#a855f7","#fb7185","#22d3ee","#84cc16","#f97316","#e5e7eb","#14b8a6","#c084fc"];
+(function(){
+const H=4, SIZE=44, COLORS=["#e23d4d","#f0a202","#3ddc84","#3b82f6","#a855f7","#fb7185","#22d3ee","#84cc16","#f97316","#e5e7eb","#14b8a6","#c084fc"];
 const $=id=>document.getElementById(id);
-let level=+(localStorage.getItem("ms_lv")||1), tubes=[], start=[], hist=[], moves=0, sel=null, lock=false;
-function spec(lv){return {n:Math.min(12,3+Math.floor((lv-1)/2))}}
+let level=1, tubes=[], start=[], hist=[], moves=0, sel=null;
+try{level=+(localStorage.getItem("ms_lv")||1)||1}catch(e){}
+function spec(lv){return Math.min(12,3+Math.floor((lv-1)/2))}
 function clone(t){return t.map(x=>x.slice())}
 function top(t){return t.length?t[t.length-1]:null}
 function runLen(t){if(!t.length)return 0;let c=top(t),n=1;for(let i=t.length-2;i>=0&&t[i]===c;i--)n++;return n}
@@ -67,7 +63,6 @@ function canPour(a,b){
   if(tubes[b].length&&top(tubes[b])!==top(tubes[a]))return 0;
   return Math.min(n,space);
 }
-function beep(f,d,type){try{const ac=beep.ac=beep.ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();const o=ac.createOscillator(),g=ac.createGain();o.type=type||"sine";o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(.2,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d)}catch(e){}}
 function scramble(n){
   const balls=[];for(let i=0;i<n;i++)for(let k=0;k<H;k++)balls.push(i);
   for(let i=balls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[balls[i],balls[j]]=[balls[j],balls[i]]}
@@ -80,51 +75,41 @@ function draw(){
   tubes.forEach((t,i)=>{
     const d=document.createElement("div");
     d.className="tube"+(sel===i?" sel":"")+(complete(t)?" done":"");
-    d.setAttribute("role","button");
-    const run=sel===i?runLen(t):0;
+    const lift=sel===i?12:0;
     t.forEach((c,idx)=>{
       const m=document.createElement("div");
-      m.className="marble"+(run&&idx>=t.length-run?" run":"");
+      m.className="marble";
       m.style.background=COLORS[c%COLORS.length];
+      m.style.bottom=(8+idx*SIZE+lift)+"px";
       d.appendChild(m);
     });
-    d.onclick=()=>tap(i);
+    d.addEventListener("click",function(e){e.preventDefault();tap(i)});
     el.appendChild(d);
   });
 }
 function tap(i){
-  if(lock)return;
-  if(sel==null){if(canPick(i)){sel=i;beep(520,.06);navigator.vibrate&&navigator.vibrate(20)}draw();return}
+  if(sel==null){if(canPick(i))sel=i;draw();return}
   if(i===sel){sel=null;draw();return}
   const n=canPour(sel,i);
   if(n){pour(sel,i,n);return}
-  if(canPick(i))sel=i; else sel=null;
-  draw();
+  sel=canPick(i)?i:null;draw();
 }
 function pour(a,b,n){
   hist.push({tubes:clone(tubes),moves});
   for(let k=0;k<n;k++)tubes[b].push(tubes[a].pop());
-  moves++;sel=null;lock=true;
-  beep(n>1?780:640,.08);navigator.vibrate&&navigator.vibrate(n>1?[20,30,20]:30);
-  draw();
-  setTimeout(()=>{
-    lock=false;
-    if(won()){
-      beep(880,.12);setTimeout(()=>beep(1170,.25),90);
-      $("winmsg").textContent="Level "+level+" in "+moves+" moves.";
-      $("win").classList.add("on");
-    }
-  },180);
+  moves++;sel=null;draw();
+  if(won()){$("winmsg").textContent="Level "+level+" in "+moves+" moves.";$("win").classList.add("on")}
 }
 function deal(advance){
-  if(advance){level++;localStorage.setItem("ms_lv",level)}
-  const s=spec(level);tubes=scramble(s.n);start=clone(tubes);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw();
+  if(advance){level++;try{localStorage.setItem("ms_lv",level)}catch(e){}}
+  tubes=scramble(spec(level));start=clone(tubes);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw();
 }
-$("undo").onclick=()=>{if(!hist.length||lock)return;const p=hist.pop();tubes=p.tubes;moves=p.moves;sel=null;draw();beep(300,.08)};
-$("restart").onclick=()=>{tubes=clone(start);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw()};
-$("next").onclick=()=>deal(false);
-$("go").onclick=()=>deal(true);
-deal(false);
+$("undo").onclick=function(){if(!hist.length)return;const p=hist.pop();tubes=p.tubes;moves=p.moves;sel=null;draw()};
+$("restart").onclick=function(){tubes=clone(start);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw()};
+$("next").onclick=function(){deal(false)};
+$("go").onclick=function(){deal(true)};
+try{deal(false)}catch(err){$("tubes").textContent="Could not start: "+err.message}
+})();
 </script>
 </body>
 </html>
