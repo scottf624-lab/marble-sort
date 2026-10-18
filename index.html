@@ -8,14 +8,14 @@
 <title>Marble Sort</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0e1525;color:#eef3ff;overflow:hidden}
-body{display:flex;flex-direction:column}
+html,body{margin:0;height:100%;height:100dvh;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0e1525;color:#eef3ff;overflow:hidden}
+body{display:flex;flex-direction:column;min-height:100dvh}
 header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px calc(8px + env(safe-area-inset-top));gap:8px}
 h1{margin:0;font-size:1.15rem;letter-spacing:.04em}
 .stat{opacity:.85;font-size:.92rem}
 .stat b{color:#ffd36a}
-.tubes{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:14px 18px;padding:8px 12px 8px;overflow:auto}
-.tube{width:54px;height:228px;border:3px solid rgba(255,255,255,.32);border-top-color:transparent;border-radius:8px 8px 28px 28px;display:flex;flex-direction:column-reverse;align-items:center;padding:6px 0 10px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));cursor:pointer;position:relative}
+.tubes{flex:1;min-height:240px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:14px 18px;padding:8px 12px;overflow:auto;-webkit-overflow-scrolling:touch}
+.tube{width:54px;height:228px;border:3px solid rgba(255,255,255,.45);border-top-color:transparent;border-radius:8px 8px 28px 28px;display:flex;flex-direction:column-reverse;align-items:center;padding:6px 0 10px;background:rgba(255,255,255,.06);cursor:pointer;position:relative;flex:0 0 54px}
 .tube:after{content:"";position:absolute;inset:8px 6px auto 6px;height:10px;border-radius:8px;background:rgba(255,255,255,.07)}
 .tube.sel{border-color:#ffd36a;transform:translateY(-6px);box-shadow:0 10px 24px rgba(255,211,106,.18)}
 .tube.done{border-color:#5ee09a}
@@ -23,7 +23,7 @@ h1{margin:0;font-size:1.15rem;letter-spacing:.04em}
 .marble:before{content:"";position:absolute;top:6px;left:8px;width:12px;height:9px;border-radius:50%;background:rgba(255,255,255,.45)}
 .tube.sel .marble:last-child,.tube.sel .run{transform:translateY(-14px);transition:transform .15s ease}
 footer{display:flex;justify-content:center;gap:10px;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
-button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:1rem;cursor:pointer;background:#24324d;color:#fff}
+footer button,.card button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:1rem;cursor:pointer;background:#24324d;color:#fff}
 button.gold{background:#ffd36a;color:#1a1408}
 .overlay{display:none;position:fixed;inset:0;background:rgba(6,10,20,.72);align-items:center;justify-content:center;text-align:center;padding:24px;z-index:5}
 .overlay.on{display:flex}
@@ -68,42 +68,19 @@ function canPour(a,b){
   return Math.min(n,space);
 }
 function beep(f,d,type){try{const ac=beep.ac=beep.ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();const o=ac.createOscillator(),g=ac.createGain();o.type=type||"sine";o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(.2,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d)}catch(e){}}
-function pourN(t,a,b){
-  if(a===b||!t[a].length||t[b].length>=H)return 0;
-  if(t[a].length===H&&t[a].every(x=>x===t[a][0]))return 0;
-  const space=H-t[b].length, c=top(t[a]); if(t[b].length&&top(t[b])!==c)return 0;
-  let n=0;for(let i=t[a].length-1;i>=0&&t[a][i]===c&&n<space;i--)n++;
-  return n;
-}
-function solvable(board){
-  const seen=new Set(), st=[clone(board)];
-  for(let steps=0;st.length&&steps<12000;steps++){
-    const t=st.pop(), k=t.map(x=>x.join("")).join("|");
-    if(seen.has(k))continue;seen.add(k);
-    if(t.every(x=>!x.length||(x.length===H&&x.every(v=>v===x[0]))))return true;
-    for(let a=0;a<t.length;a++)for(let b=0;b<t.length;b++){
-      const n=pourN(t,a,b); if(!n)continue;
-      const u=clone(t);for(let i=0;i<n;i++)u[b].push(u[a].pop());st.push(u);
-    }
-  }
-  return false;
-}
 function scramble(n){
   const balls=[];for(let i=0;i<n;i++)for(let k=0;k<H;k++)balls.push(i);
-  for(let tries=0;tries<25;tries++){
-    for(let i=balls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[balls[i],balls[j]]=[balls[j],balls[i]]}
-    const t=[];for(let i=0;i<n;i++)t.push(balls.slice(i*H,i*H+H));t.push([],[]);
-    if(n>6||solvable(t))return t;
-  }
-  return (function(){const t=[];for(let i=0;i<n;i++)t.push(Array(H).fill(i));t.push([],[]);return t})();
+  for(let i=balls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[balls[i],balls[j]]=[balls[j],balls[i]]}
+  const t=[];for(let i=0;i<n;i++)t.push(balls.slice(i*H,i*H+H));t.push([],[]);
+  return t;
 }
 function draw(){
   $("lv").textContent=level;$("mv").textContent=moves;
   const el=$("tubes");el.innerHTML="";
   tubes.forEach((t,i)=>{
-    const d=document.createElement("button");
+    const d=document.createElement("div");
     d.className="tube"+(sel===i?" sel":"")+(complete(t)?" done":"");
-    d.type="button";
+    d.setAttribute("role","button");
     const run=sel===i?runLen(t):0;
     t.forEach((c,idx)=>{
       const m=document.createElement("div");
