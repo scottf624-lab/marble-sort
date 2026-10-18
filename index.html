@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1525">
+<title>Marble Sort</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0e1525;color:#eef3ff;overflow:hidden}
+body{display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px calc(8px + env(safe-area-inset-top));gap:8px}
+h1{margin:0;font-size:1.15rem;letter-spacing:.04em}
+.stat{opacity:.85;font-size:.92rem}
+.stat b{color:#ffd36a}
+.tubes{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:14px 18px;padding:8px 12px 8px;overflow:auto}
+.tube{width:54px;height:228px;border:3px solid rgba(255,255,255,.32);border-top-color:transparent;border-radius:8px 8px 28px 28px;display:flex;flex-direction:column-reverse;align-items:center;padding:6px 0 10px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));cursor:pointer;position:relative}
+.tube:after{content:"";position:absolute;inset:8px 6px auto 6px;height:10px;border-radius:8px;background:rgba(255,255,255,.07)}
+.tube.sel{border-color:#ffd36a;transform:translateY(-6px);box-shadow:0 10px 24px rgba(255,211,106,.18)}
+.tube.done{border-color:#5ee09a}
+.marble{width:42px;height:42px;border-radius:50%;margin:2px 0;position:relative;box-shadow:inset -7px -8px 12px rgba(0,0,0,.28),inset 6px 5px 10px rgba(255,255,255,.35),0 3px 6px rgba(0,0,0,.35)}
+.marble:before{content:"";position:absolute;top:6px;left:8px;width:12px;height:9px;border-radius:50%;background:rgba(255,255,255,.45)}
+.tube.sel .marble:last-child,.tube.sel .run{transform:translateY(-14px);transition:transform .15s ease}
+footer{display:flex;justify-content:center;gap:10px;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:1rem;cursor:pointer;background:#24324d;color:#fff}
+button.gold{background:#ffd36a;color:#1a1408}
+.overlay{display:none;position:fixed;inset:0;background:rgba(6,10,20,.72);align-items:center;justify-content:center;text-align:center;padding:24px;z-index:5}
+.overlay.on{display:flex}
+.card{background:#18233a;border-radius:20px;padding:28px 22px;max-width:360px;width:100%}
+.card h2{margin:0 0 8px;color:#ffd36a;font-size:1.8rem}
+.card p{margin:0 0 16px;opacity:.9}
+</style>
+</head>
+<body>
+<header>
+  <h1>MARBLE SORT</h1>
+  <div class="stat">Level <b id="lv">1</b> · Moves <b id="mv">0</b></div>
+</header>
+<div class="tubes" id="tubes"></div>
+<footer>
+  <button id="undo">Undo</button>
+  <button id="restart">Restart</button>
+  <button class="gold" id="next">New mix</button>
+</footer>
+<div class="overlay" id="win">
+  <div class="card">
+    <h2>Sorted!</h2>
+    <p id="winmsg">Nice work.</p>
+    <button class="gold" id="go">Next level</button>
+  </div>
+</div>
+<script>
+const H=4, COLORS=["#e23d4d","#f0a202","#3ddc84","#3b82f6","#a855f7","#fb7185","#22d3ee","#84cc16","#f97316","#e5e7eb","#14b8a6","#c084fc"];
+const $=id=>document.getElementById(id);
+let level=+(localStorage.getItem("ms_lv")||1), tubes=[], start=[], hist=[], moves=0, sel=null, lock=false;
+function spec(lv){return {n:Math.min(12,3+Math.floor((lv-1)/2))}}
+function clone(t){return t.map(x=>x.slice())}
+function top(t){return t.length?t[t.length-1]:null}
+function runLen(t){if(!t.length)return 0;let c=top(t),n=1;for(let i=t.length-2;i>=0&&t[i]===c;i--)n++;return n}
+function complete(t){return t.length===H&&t.every(x=>x===t[0])}
+function won(){return tubes.every(t=>!t.length||complete(t))}
+function canPick(i){return tubes[i].length&&!complete(tubes[i])}
+function canPour(a,b){
+  if(a===b||!tubes[a].length||complete(tubes[a])||tubes[b].length>=H)return 0;
+  const space=H-tubes[b].length, n=runLen(tubes[a]);
+  if(tubes[b].length&&top(tubes[b])!==top(tubes[a]))return 0;
+  return Math.min(n,space);
+}
+function beep(f,d,type){try{const ac=beep.ac=beep.ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();const o=ac.createOscillator(),g=ac.createGain();o.type=type||"sine";o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(.2,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d)}catch(e){}}
+function pourN(t,a,b){
+  if(a===b||!t[a].length||t[b].length>=H)return 0;
+  if(t[a].length===H&&t[a].every(x=>x===t[a][0]))return 0;
+  const space=H-t[b].length, c=top(t[a]); if(t[b].length&&top(t[b])!==c)return 0;
+  let n=0;for(let i=t[a].length-1;i>=0&&t[a][i]===c&&n<space;i--)n++;
+  return n;
+}
+function solvable(board){
+  const seen=new Set(), st=[clone(board)];
+  for(let steps=0;st.length&&steps<12000;steps++){
+    const t=st.pop(), k=t.map(x=>x.join("")).join("|");
+    if(seen.has(k))continue;seen.add(k);
+    if(t.every(x=>!x.length||(x.length===H&&x.every(v=>v===x[0]))))return true;
+    for(let a=0;a<t.length;a++)for(let b=0;b<t.length;b++){
+      const n=pourN(t,a,b); if(!n)continue;
+      const u=clone(t);for(let i=0;i<n;i++)u[b].push(u[a].pop());st.push(u);
+    }
+  }
+  return false;
+}
+function scramble(n){
+  const balls=[];for(let i=0;i<n;i++)for(let k=0;k<H;k++)balls.push(i);
+  for(let tries=0;tries<25;tries++){
+    for(let i=balls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[balls[i],balls[j]]=[balls[j],balls[i]]}
+    const t=[];for(let i=0;i<n;i++)t.push(balls.slice(i*H,i*H+H));t.push([],[]);
+    if(n>6||solvable(t))return t;
+  }
+  return (function(){const t=[];for(let i=0;i<n;i++)t.push(Array(H).fill(i));t.push([],[]);return t})();
+}
+function draw(){
+  $("lv").textContent=level;$("mv").textContent=moves;
+  const el=$("tubes");el.innerHTML="";
+  tubes.forEach((t,i)=>{
+    const d=document.createElement("button");
+    d.className="tube"+(sel===i?" sel":"")+(complete(t)?" done":"");
+    d.type="button";
+    const run=sel===i?runLen(t):0;
+    t.forEach((c,idx)=>{
+      const m=document.createElement("div");
+      m.className="marble"+(run&&idx>=t.length-run?" run":"");
+      m.style.background=COLORS[c%COLORS.length];
+      d.appendChild(m);
+    });
+    d.onclick=()=>tap(i);
+    el.appendChild(d);
+  });
+}
+function tap(i){
+  if(lock)return;
+  if(sel==null){if(canPick(i)){sel=i;beep(520,.06);navigator.vibrate&&navigator.vibrate(20)}draw();return}
+  if(i===sel){sel=null;draw();return}
+  const n=canPour(sel,i);
+  if(n){pour(sel,i,n);return}
+  if(canPick(i))sel=i; else sel=null;
+  draw();
+}
+function pour(a,b,n){
+  hist.push({tubes:clone(tubes),moves});
+  for(let k=0;k<n;k++)tubes[b].push(tubes[a].pop());
+  moves++;sel=null;lock=true;
+  beep(n>1?780:640,.08);navigator.vibrate&&navigator.vibrate(n>1?[20,30,20]:30);
+  draw();
+  setTimeout(()=>{
+    lock=false;
+    if(won()){
+      beep(880,.12);setTimeout(()=>beep(1170,.25),90);
+      $("winmsg").textContent="Level "+level+" in "+moves+" moves.";
+      $("win").classList.add("on");
+    }
+  },180);
+}
+function deal(advance){
+  if(advance){level++;localStorage.setItem("ms_lv",level)}
+  const s=spec(level);tubes=scramble(s.n);start=clone(tubes);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw();
+}
+$("undo").onclick=()=>{if(!hist.length||lock)return;const p=hist.pop();tubes=p.tubes;moves=p.moves;sel=null;draw();beep(300,.08)};
+$("restart").onclick=()=>{tubes=clone(start);hist=[];moves=0;sel=null;$("win").classList.remove("on");draw()};
+$("next").onclick=()=>deal(false);
+$("go").onclick=()=>deal(true);
+deal(false);
+</script>
+</body>
+</html>
